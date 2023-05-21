@@ -1,6 +1,5 @@
-fastapi
+Flask
 gunicorn
 tensorflow
 numpy
 pillow
-uvicorn

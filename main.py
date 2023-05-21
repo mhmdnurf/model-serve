@@ -7,7 +7,7 @@ from tensorflow import keras
 import numpy as np
 from PIL import Image
 
-from fastapi import FastAPI, UploadFile, File
+from flask import Flask, request, jsonify
 
 model = keras.models.load_model("model/nn.h5")
 
@@ -28,25 +28,27 @@ def predict(x):
     label0 = np.argmax(pred0)
     return label0
 
-app = FastAPI()
+app = Flask(__name__)
 
+@app.route("/", methods=["GET", "POST"])
+def index():
+    if request.method == "POST":
+        file = request.files.get('file')
+        if file is None or file.filename == "":
+            return jsonify({"error": "no file"})
 
-@app.post("/")
-async def index(file: UploadFile = File(...)):
-    if file is None or file.filename == "":
-        return {"error": "no file"}
+        try:
+            image_bytes = file.read()
+            pillow_img = Image.open(io.BytesIO(image_bytes)).convert('L')
+            tensor = transform_image(pillow_img)
+            prediction = predict(tensor)
+            data = {"prediction": int(prediction)}
+            return jsonify(data)
+        except Exception as e:
+            return jsonify({"error": str(e)})
 
-    try:
-        image_bytes = await file.read()
-        pillow_img = Image.open(io.BytesIO(image_bytes)).convert('L')
-        tensor = transform_image(pillow_img)
-        prediction = predict(tensor)
-        data = {"prediction": int(prediction)}
-        return data
-    except Exception as e:
-        return {"error": str(e)}
+    return "OK"
 
 
 if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="localhost", port=8000)
+    app.run(debug=True)
